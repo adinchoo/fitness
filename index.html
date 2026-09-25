@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#09131f">
+  <meta name="description" content="Private personal fitness, nutrition and wellbeing tracker.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FitnessAI">
+  <title>Fitness AI Hub</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/icons/icon-180.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <section id="setupScreen" class="center-screen hidden">
+    <form id="setupForm" class="auth-card">
+      <div class="brand"><span>♥</span><div><h1>Connect Supabase</h1><p>One-time setup on this device</p></div></div>
+      <div class="notice">Use your project URL and <strong>publishable key</strong>, or legacy <strong>anon public key</strong>. Never use a service-role or secret key here.</div>
+      <label>Project URL<input id="setupUrl" type="url" required placeholder="https://project-ref.supabase.co" autocomplete="url"></label>
+      <label>Publishable / anon key<textarea id="setupKey" required rows="4" placeholder="sb_publishable_... or eyJ..."></textarea></label>
+      <button class="btn primary" type="submit">Save and connect</button>
+      <small class="muted">Saved only in this browser. GitHub source code contains no database key.</small>
+    </form>
+  </section>
+
+  <section id="authScreen" class="center-screen hidden">
+    <div class="auth-card wide">
+      <div class="brand"><span>♥</span><div><h1>Fitness AI Hub</h1><p>Your private health companion</p></div></div>
+      <div class="tabs"><button class="tab active" data-auth-tab="login" type="button">Sign in</button><button class="tab" data-auth-tab="signup" type="button">Create account</button></div>
+      <form id="loginForm" class="stack auth-panel active">
+        <label>Email<input name="email" type="email" required autocomplete="email"></label>
+        <label>Password<input name="password" type="password" required minlength="8" autocomplete="current-password"></label>
+        <button class="btn primary" type="submit">Sign in</button>
+        <button id="forgotButton" class="link-btn" type="button">Forgot password?</button>
+      </form>
+      <form id="signupForm" class="stack auth-panel">
+        <div class="step-title"><span>Account and personal health profile</span><small>Fields marked optional can be skipped</small></div>
+        <div class="grid2">
+          <label>Full name<input name="full_name" required maxlength="80" autocomplete="name"></label>
+          <label>Date of birth<input name="date_of_birth" type="date" required></label>
+          <label>Sex at birth <select name="sex_at_birth" required><option value="">Select</option><option>Male</option><option>Female</option><option>Prefer not to say</option></select></label>
+          <label>Height (cm)<input name="height_cm" type="number" min="80" max="250" step="0.1" required></label>
+          <label>Current weight (kg)<input name="current_weight_kg" type="number" min="25" max="400" step="0.1" required></label>
+          <label>Target weight (kg)<input name="target_weight_kg" type="number" min="25" max="400" step="0.1" required></label>
+          <label>Primary goal<select name="primary_goal" required><option value="">Select</option><option value="lose_weight">Lose weight</option><option value="maintain">Maintain weight</option><option value="gain_muscle">Gain muscle</option><option value="improve_fitness">Improve fitness</option><option value="general_health">General health</option></select></label>
+          <label>Activity level<select name="activity_level" required><option value="">Select</option><option value="sedentary">Mostly seated</option><option value="light">Lightly active</option><option value="moderate">Moderately active</option><option value="very_active">Very active</option></select></label>
+          <label>Daily calorie target<input name="target_calories" type="number" min="800" max="6000" value="2000" required></label>
+          <label>Daily protein target (g)<input name="target_protein_g" type="number" min="20" max="500" value="120" required></label>
+          <label>Daily water target (ml)<input name="target_water_ml" type="number" min="500" max="10000" step="100" value="2500" required></label>
+          <label>Activity target (min)<input name="target_activity_minutes" type="number" min="5" max="600" value="30" required></label>
+          <label>Diet preference (optional)<select name="diet_preference"><option value="">None</option><option>Balanced</option><option>High protein</option><option>Vegetarian</option><option>Vegan</option><option>Halal</option><option>Low carbohydrate</option></select></label>
+          <label>Time zone<input name="timezone" id="signupTimezone" required readonly></label>
+        </div>
+        <label>Allergies or foods to avoid (optional)<input name="allergies" maxlength="250" placeholder="Example: peanuts, shellfish"></label>
+        <label>Health considerations (optional)<textarea name="health_notes" rows="3" maxlength="500" placeholder="Only add information you are comfortable storing"></textarea></label>
+        <label>Email<input name="email" type="email" required autocomplete="email"></label>
+        <label>Password<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label>Confirm password<input name="confirm_password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label class="check"><input name="consent" type="checkbox" required><span>I understand this is a personal wellness tracker, not medical advice.</span></label>
+        <button class="btn primary" type="submit">Create my account</button>
+      </form>
+      <button id="changeConnection" class="link-btn subtle" type="button">Change Supabase connection</button>
+    </div>
+  </section>
+
+  <div id="app" class="hidden">
+    <header class="topbar"><div><p class="eyebrow" id="dateLabel"></p><h1 id="greeting">Fitness AI Hub</h1></div><button id="logoutButton" class="btn ghost">Sign out</button></header>
+    <main class="shell">
+      <section id="homeView" class="view active">
+        <div class="hero"><div><p class="eyebrow">Daily wellbeing</p><h2>Your health overview</h2><p id="goalText" class="muted"></p></div><div class="score"><strong id="scoreValue">0</strong><small>/100</small></div></div>
+        <div class="metrics">
+          <article><span>Calories</span><strong id="caloriesValue">0</strong><small id="caloriesTarget"></small><i><b id="caloriesBar"></b></i></article>
+          <article><span>Protein</span><strong id="proteinValue">0 g</strong><small id="proteinTarget"></small><i><b id="proteinBar"></b></i></article>
+          <article><span>Water</span><strong id="waterValue">0 ml</strong><small id="waterTarget"></small><i><b id="waterBar"></b></i></article>
+          <article><span>Activity</span><strong id="activityValue">0 min</strong><small id="activityTarget"></small><i><b id="activityBar"></b></i></article>
+        </div>
+        <article class="panel"><div class="panel-head"><h3>Coach overview</h3><span class="pill">Data based</span></div><p id="coachOverview" class="coach-copy"></p><div id="insights" class="insights"></div></article>
+        <div class="columns"><article class="panel"><div class="panel-head"><h3>Meals today</h3><button data-open="mealDialog" class="link-btn">Add</button></div><div id="mealList"></div></article><article class="panel"><div class="panel-head"><h3>Activities today</h3><button data-open="activityDialog" class="link-btn">Add</button></div><div id="activityList"></div></article></div>
+      </section>
+
+      <section id="logView" class="view"><div class="hero"><div><p class="eyebrow">Record progress</p><h2>Quick logging</h2></div></div><div class="quick-grid">
+        <button data-open="mealDialog"><span>🍽</span><strong>Meal</strong><small>Calories and macros</small></button><button data-open="activityDialog"><span>🏃</span><strong>Activity</strong><small>Movement and workout</small></button><button data-open="bodyDialog"><span>⚖</span><strong>Body</strong><small>Weight and composition</small></button><button data-open="sleepDialog"><span>☾</span><strong>Sleep</strong><small>Duration and quality</small></button><button id="waterButton"><span>💧</span><strong>Water +250 ml</strong><small>Quick hydration</small></button></div>
+        <article class="panel"><div class="panel-head"><h3>Recent records</h3><button id="refreshButton" class="link-btn">Refresh</button></div><div id="recentList"></div></article>
+      </section>
+
+      <section id="profileView" class="view"><div class="hero"><div><p class="eyebrow">Analysis inputs</p><h2>Personal profile</h2><p class="muted">Keep these details accurate for useful future AI analysis.</p></div></div>
+        <form id="profileForm" class="panel form-grid"><label>Full name<input name="full_name" required></label><label>Date of birth<input name="date_of_birth" type="date" required></label><label>Sex at birth<select name="sex_at_birth" required><option>Male</option><option>Female</option><option>Prefer not to say</option></select></label><label>Height (cm)<input name="height_cm" type="number" min="80" max="250" step="0.1" required></label><label>Target weight (kg)<input name="target_weight_kg" type="number" min="25" max="400" step="0.1" required></label><label>Primary goal<select name="primary_goal" required><option value="lose_weight">Lose weight</option><option value="maintain">Maintain weight</option><option value="gain_muscle">Gain muscle</option><option value="improve_fitness">Improve fitness</option><option value="general_health">General health</option></select></label><label>Activity level<select name="activity_level" required><option value="sedentary">Mostly seated</option><option value="light">Lightly active</option><option value="moderate">Moderately active</option><option value="very_active">Very active</option></select></label><label>Diet preference<input name="diet_preference"></label><label>Daily calories<input name="target_calories" type="number" min="800" max="6000" required></label><label>Daily protein (g)<input name="target_protein_g" type="number" min="20" max="500" required></label><label>Daily water (ml)<input name="target_water_ml" type="number" min="500" max="10000" required></label><label>Activity target (min)<input name="target_activity_minutes" type="number" min="5" max="600" required></label><label class="full">Allergies / foods to avoid<input name="allergies" maxlength="250"></label><label class="full">Health considerations<textarea name="health_notes" rows="3" maxlength="500"></textarea></label><button class="btn primary full" type="submit">Save profile</button></form>
+        <article class="panel"><h3>Account and privacy</h3><p class="muted">Your records are protected by Supabase authentication and Row Level Security. Do not use this app for emergencies or as a replacement for a qualified clinician.</p><div class="button-row"><button id="exportButton" class="btn ghost">Export JSON</button><button id="deleteAccountData" class="btn danger">Delete my health data</button></div></article>
+      </section>
+    </main>
+    <nav class="bottom-nav"><button class="nav active" data-view="homeView"><span>⌂</span>Home</button><button class="nav" data-view="logView"><span>＋</span>Log</button><button class="nav" data-view="profileView"><span>◎</span>Profile</button></nav>
+  </div>
+
+  <dialog id="mealDialog"><form id="mealForm" class="dialog-form"><header><h3>Add meal</h3><button data-close type="button">×</button></header><label>Meal name<input name="meal_name" required maxlength="100"></label><div class="grid2"><label>Calories<input name="calories" type="number" min="0" max="10000" required></label><label>Protein (g)<input name="protein_g" type="number" min="0" max="1000" step="0.1" required></label><label>Carbohydrate (g)<input name="carbs_g" type="number" min="0" max="1000" step="0.1" required></label><label>Fat (g)<input name="fat_g" type="number" min="0" max="1000" step="0.1" required></label></div><label>Meal type<select name="meal_type"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></label><label>Date and time<input name="logged_at" type="datetime-local" required></label><button class="btn primary">Save meal</button></form></dialog>
+  <dialog id="activityDialog"><form id="activityForm" class="dialog-form"><header><h3>Add activity</h3><button data-close type="button">×</button></header><label>Activity<select name="activity_name"><option>Walking</option><option>Running</option><option>Cycling</option><option>Strength training</option><option>Swimming</option><option>Other</option></select></label><div class="grid2"><label>Duration (min)<input name="duration_minutes" type="number" min="1" max="1440" required></label><label>Calories burned<input name="calories_burned" type="number" min="0" max="10000" required></label><label>Distance (km)<input name="distance_km" type="number" min="0" max="1000" step="0.01" value="0"></label><label>Source<select name="source"><option>Manual</option><option>Garmin</option><option>Strava</option><option>Apple Fitness</option></select></label></div><label>Date and time<input name="logged_at" type="datetime-local" required></label><button class="btn primary">Save activity</button></form></dialog>
+  <dialog id="bodyDialog"><form id="bodyForm" class="dialog-form"><header><h3>Add body measurement</h3><button data-close type="button">×</button></header><div class="grid2"><label>Weight (kg)<input name="weight_kg" type="number" min="25" max="400" step="0.1" required></label><label>Body fat (%)<input name="body_fat_percent" type="number" min="0" max="80" step="0.1"></label><label>Muscle mass (kg)<input name="muscle_mass_kg" type="number" min="0" max="250" step="0.1"></label><label>BMI<input name="bmi" type="number" min="5" max="100" step="0.1"></label></div><label>Source<select name="source"><option>Manual</option><option>Zepp Life</option><option>Apple Health</option><option>Garmin</option></select></label><label>Date and time<input name="logged_at" type="datetime-local" required></label><button class="btn primary">Save measurement</button></form></dialog>
+  <dialog id="sleepDialog"><form id="sleepForm" class="dialog-form"><header><h3>Add sleep</h3><button data-close type="button">×</button></header><label>Duration (hours)<input name="duration_hours" type="number" min="0" max="24" step="0.1" required></label><label>Quality<select name="quality"><option value="5">Excellent</option><option value="4">Good</option><option value="3">Fair</option><option value="2">Poor</option><option value="1">Very poor</option></select></label><label>Source<select name="source"><option>Manual</option><option>Garmin</option><option>Apple Health</option></select></label><label>Wake date and time<input name="logged_at" type="datetime-local" required></label><button class="btn primary">Save sleep</button></form></dialog>
+  <script src="./app.js" defer></script>
+</body></html>
